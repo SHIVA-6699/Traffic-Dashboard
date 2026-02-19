@@ -132,12 +132,13 @@ export default function SpeedHeatmap({ onReport }) {
           <span>Loading CSV data…</span>
         </div>
       )}
-      <div className="chart-inner chart-inner--tall">
+      <div className="chart-inner speed-map-wrapper">
         <MapContainer
           center={CENTER}
           zoom={15}
-          scrollWheelZoom={false}
+          scrollWheelZoom={true}
           className="speed-map-container"
+          style={{ height: '100%', width: '100%' }}
         >
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"

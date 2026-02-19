@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Globe2, MapPinned, Video } from 'lucide-react';
+import { TrafficDataProvider } from './context/TrafficDataContext';
 import Header from './components/Header';
 import OverviewPage from './components/OverviewPage';
 import IntersectionPage from './components/IntersectionPage';
@@ -35,6 +36,7 @@ export default function App() {
   };
 
   return (
+    <TrafficDataProvider>
     <div className="dashboard-wrap">
       <div className="container">
         <Header
@@ -93,5 +95,6 @@ export default function App() {
         </main>
       </div>
     </div>
+    </TrafficDataProvider>
   );
 }
