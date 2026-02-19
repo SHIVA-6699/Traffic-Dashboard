@@ -283,6 +283,16 @@
   box-shadow: var(--shadow-md);
 }
 
+.select--day {
+  min-width: 140px;
+}
+
+.map-loading {
+  padding: 8px 0;
+  font-size: 0.9rem;
+  color: var(--gray-600);
+}
+
 /* Heatmap */
 .heatmap-grid {
   display: grid;
@@ -613,6 +623,29 @@
   margin-bottom: 20px;
   color: var(--gray-800);
   font-size: clamp(1.1rem, 2vw, 1.25rem);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.section-title-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--green-600);
+}
+
+.nav-btn-icon {
+  width: 1rem;
+  height: 1rem;
+  vertical-align: middle;
+}
+
+.table-play-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  vertical-align: middle;
+  margin-right: 0.25rem;
+  color: var(--green-600);
 }
 
 .video-player {

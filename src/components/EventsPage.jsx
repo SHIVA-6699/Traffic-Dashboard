@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { Video, ChevronLeft, ChevronRight, Play } from 'lucide-react';
 
 const CLIPS = [
   { title: 'Wrong Way Event - Main St & 5th Ave', time: '2024-01-15 14:32:18', confidence: '94.2%' },
@@ -88,7 +89,7 @@ export default function EventsPage() {
   return (
     <>
       <div className="clips-section">
-        <h2>📹 Event Clips – High Definition Playback</h2>
+        <h2><Video className="section-title-icon" /> Event Clips – High Definition Playback</h2>
         <div className="video-player">
           <video autoPlay muted loop playsInline>
             <source src="" type="video/mp4" />
@@ -101,10 +102,10 @@ export default function EventsPage() {
             </div>
             <div className="video-nav">
               <button type="button" className="nav-btn" onClick={() => goPrev(true)} aria-label="Previous clip">
-                ◀ Previous
+                <ChevronLeft className="nav-btn-icon" /> Previous
               </button>
               <button type="button" className="nav-btn" onClick={() => goNext(true)} aria-label="Next clip">
-                Next ▶
+                Next <ChevronRight className="nav-btn-icon" />
               </button>
             </div>
           </div>
@@ -212,7 +213,7 @@ export default function EventsPage() {
                     <td>{row.direction}</td>
                     <td>{row.confidence}</td>
                     <td><img src={PLACEHOLDER_IMG} alt="" className="event-preview" /></td>
-                    <td>▶ {row.clip} clip</td>
+                    <td><Play className="table-play-icon" /> {row.clip} clip</td>
                   </tr>
                 );
               })

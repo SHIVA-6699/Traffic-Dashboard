@@ -1,23 +1,31 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import { toast } from 'sonner';
+import { Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import { SEPTEMBER_CSV_DAYS, getCsvUrl } from '../data/csvPaths';
+import { fetchAndParseCsv } from '../data/parseTrafficCsv';
 
-// Demo coordinates for a city center (can be replaced with real intersection coordinates)
-const CENTER = [40.7128, -74.006]; // New York-style center
+const CENTER = [40.7128, -74.006];
 
-// Simple demo data for directions around the intersection
-const DIRECTION_SEGMENTS = [
-  { id: 'north', label: 'Northbound', offset: [0.0012, 0], avgSpeed: 32, volume: 12450 },
-  { id: 'south', label: 'Southbound', offset: [-0.0012, 0], avgSpeed: 36, volume: 10234 },
-  { id: 'east', label: 'Eastbound', offset: [0, 0.0015], avgSpeed: 34, volume: 8891 },
-  { id: 'west', label: 'Westbound', offset: [0, -0.0015], avgSpeed: 38, volume: 9567 },
+const DIRECTION_OFFSETS = {
+  north: [0.0012, 0],
+  south: [-0.0012, 0],
+  east: [0, 0.0015],
+  west: [0, -0.0015],
+};
+
+const FALLBACK_SEGMENTS = [
+  { id: 'north', label: 'Northbound', offset: [0.0012, 0], avgSpeedMph: 32, volume: 12450 },
+  { id: 'south', label: 'Southbound', offset: [-0.0012, 0], avgSpeedMph: 36, volume: 10234 },
+  { id: 'east', label: 'Eastbound', offset: [0, 0.0015], avgSpeedMph: 34, volume: 8891 },
+  { id: 'west', label: 'Westbound', offset: [0, -0.0015], avgSpeedMph: 38, volume: 9567 },
 ];
 
-function speedToColor(speed) {
-  if (speed <= 25) return '#22c55e'; // green
-  if (speed <= 35) return '#eab308'; // yellow
-  if (speed <= 45) return '#f97316'; // orange
-  return '#ef4444'; // red
+function speedToColor(speedMph) {
+  if (speedMph <= 25) return '#22c55e';
+  if (speedMph <= 35) return '#eab308';
+  if (speedMph <= 45) return '#f97316';
+  return '#ef4444';
 }
 
 function volumeToRadius(volume) {
@@ -27,6 +35,38 @@ function volumeToRadius(volume) {
 
 export default function SpeedHeatmap({ onReport }) {
   const [speedFilter, setSpeedFilter] = useState('aggregated');
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [segments, setSegments] = useState(FALLBACK_SEGMENTS);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (selectedDay == null) {
+      setSegments(FALLBACK_SEGMENTS);
+      return;
+    }
+    const file = SEPTEMBER_CSV_DAYS.find((d) => d.day === selectedDay)?.file;
+    if (!file) return;
+    setLoading(true);
+    fetchAndParseCsv(getCsvUrl(file))
+      .then((agg) => {
+        const list = agg.map((a) => ({
+          id: a.id,
+          label: a.label,
+          offset: DIRECTION_OFFSETS[a.id] || [0, 0],
+          avgSpeedMph: a.avgSpeedMph,
+          volume: a.volume,
+        }));
+        setSegments(list);
+        toast.success(`September ${selectedDay} data loaded`, {
+          description: `${agg.reduce((s, a) => s + a.volume, 0).toLocaleString()} vehicles`,
+        });
+      })
+      .catch((err) => {
+        toast.error('Could not load CSV', { description: err?.message || 'Check file path.' });
+        setSegments(FALLBACK_SEGMENTS);
+      })
+      .finally(() => setLoading(false));
+  }, [selectedDay]);
 
   const handleReport = (type) => {
     if (onReport) {
@@ -42,7 +82,7 @@ export default function SpeedHeatmap({ onReport }) {
 
   const handleSegmentClick = (segment) => {
     toast.info(`${segment.label} speeds`, {
-      description: `Avg speed ${segment.avgSpeed} mph • Volume ${segment.volume.toLocaleString()}`,
+      description: `Avg ${segment.avgSpeedMph} mph • ${segment.volume.toLocaleString()} vehicles`,
     });
   };
 
@@ -51,12 +91,25 @@ export default function SpeedHeatmap({ onReport }) {
       <div className="chart-header">
         <h2>Speed Map by Direction</h2>
         <div className="filter-group">
+          <select
+            className="select select--day"
+            value={selectedDay ?? ''}
+            onChange={(e) => setSelectedDay(e.target.value ? Number(e.target.value) : null)}
+            aria-label="Select day"
+          >
+            <option value="">Demo data</option>
+            {SEPTEMBER_CSV_DAYS.map(({ day, file }) => (
+              <option key={day} value={day}>
+                Sept {day} ({file})
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             className={`filter-btn ${speedFilter === 'aggregated' ? 'active' : ''}`}
             onClick={() => {
               setSpeedFilter('aggregated');
-              toast.info('Showing aggregated speeds by direction on the map');
+              toast.info('Showing aggregated speeds by direction');
             }}
           >
             Aggregated
@@ -74,6 +127,11 @@ export default function SpeedHeatmap({ onReport }) {
         </div>
       </div>
 
+      {loading && (
+        <div className="map-loading">
+          <span>Loading CSV data…</span>
+        </div>
+      )}
       <div className="chart-inner chart-inner--tall">
         <MapContainer
           center={CENTER}
@@ -85,14 +143,17 @@ export default function SpeedHeatmap({ onReport }) {
             attribution="&copy; OpenStreetMap contributors"
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {DIRECTION_SEGMENTS.map((segment) => (
+          {segments.map((segment) => (
             <CircleMarker
               key={segment.id}
-              center={[CENTER[0] + segment.offset[0], CENTER[1] + segment.offset[1]]}
+              center={[
+                CENTER[0] + segment.offset[0],
+                CENTER[1] + segment.offset[1],
+              ]}
               radius={volumeToRadius(segment.volume)}
               pathOptions={{
-                color: speedToColor(segment.avgSpeed),
-                fillColor: speedToColor(segment.avgSpeed),
+                color: speedToColor(segment.avgSpeedMph),
+                fillColor: speedToColor(segment.avgSpeedMph),
                 fillOpacity: 0.7,
                 weight: 2,
               }}
@@ -104,7 +165,7 @@ export default function SpeedHeatmap({ onReport }) {
                 <div>
                   <strong>{segment.label}</strong>
                   <br />
-                  {segment.avgSpeed} mph • {segment.volume.toLocaleString()} vehicles
+                  {segment.avgSpeedMph} mph • {segment.volume.toLocaleString()} vehicles
                 </div>
               </Tooltip>
             </CircleMarker>
@@ -114,13 +175,16 @@ export default function SpeedHeatmap({ onReport }) {
 
       <div className="report-buttons report-buttons--center">
         <button type="button" className="report-btn" onClick={() => handleReport('daily')}>
-          📊 Generate Daily Report
+          <Calendar className="btn-icon" />
+          Generate Daily Report
         </button>
         <button type="button" className="report-btn" onClick={() => handleReport('weekly')}>
-          📈 Generate Weekly Report
+          <TrendingUp className="btn-icon" />
+          Generate Weekly Report
         </button>
         <button type="button" className="report-btn" onClick={() => handleReport('monthly')}>
-          📉 Generate Monthly Report
+          <TrendingDown className="btn-icon" />
+          Generate Monthly Report
         </button>
       </div>
     </div>
